@@ -1,0 +1,13 @@
+﻿{
+  "appId": "app.conradmicallef.motorways",
+  "appName": "Mini Roads",
+  "webDir": "../pwa",
+  "backgroundColor": "#efe8d8",
+  "ios": { "contentInset": "never", "backgroundColor": "#efe8d8" },
+  "android": { "backgroundColor": "#efe8d8" },
+  "plugins": {
+    "SplashScreen": { "launchShowDuration": 0, "backgroundColor": "#efe8d8", "showSpinner": false },
+    "StatusBar": { "style": "LIGHT", "backgroundColor": "#efe8d8", "overlaysWebView": true }
+  }
+}
+

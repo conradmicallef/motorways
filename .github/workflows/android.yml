@@ -1,0 +1,71 @@
+name: Build Android
+
+on:
+  push:
+    branches: [main]
+    paths: ['pwa/**', 'native/**', '.github/workflows/android.yml']
+  pull_request:
+    paths: ['pwa/**', 'native/**', '.github/workflows/android.yml']
+  workflow_dispatch:
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: native
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: native/package-lock.json
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v4
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Sync web assets into Android project
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: native/android
+        run: chmod +x gradlew && ./gradlew assembleDebug
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: mini-roads-debug-apk
+          path: native/android/app/build/outputs/apk/debug/*.apk
+
+      # Signed release AAB - only runs when the signing secrets are configured.
+      # Secrets: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+      - name: Build signed release AAB
+        if: github.event_name != 'pull_request' && env.KS_B64 != ''
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        working-directory: native/android
+        run: |
+          echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+          ./gradlew bundleRelease \
+            -Pandroid.injected.signing.store.file="$RUNNER_TEMP/release.keystore" \
+            -Pandroid.injected.signing.store.password="${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
+            -Pandroid.injected.signing.key.alias="${{ secrets.ANDROID_KEY_ALIAS }}" \
+            -Pandroid.injected.signing.key.password="${{ secrets.ANDROID_KEY_PASSWORD }}"
+
+      - uses: actions/upload-artifact@v7
+        if: github.event_name != 'pull_request' && env.KS_B64 != ''
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        with:
+          name: mini-roads-release-aab
+          path: native/android/app/build/outputs/bundle/release/*.aab

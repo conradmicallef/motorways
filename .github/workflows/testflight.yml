@@ -1,0 +1,102 @@
+name: iOS TestFlight
+
+# Builds a signed release IPA and uploads it to TestFlight.
+# Run manually (Actions > iOS TestFlight > Run workflow) or push a tag like v1.0.0.
+#
+# Required repository secrets (App Store Connect API key with App Manager or Admin role):
+#   ASC_KEY_ID          - key ID
+#   ASC_ISSUER_ID       - issuer ID
+#   ASC_KEY_P8          - full raw contents of the AuthKey_XXXX.p8 file (including BEGIN/END lines)
+#   IOS_TEAM_ID         - 10-character Apple developer team ID
+# The app (app.conradmicallef.motorways) must already exist in App Store Connect.
+# Signing is automatic: Xcode uses the API key to create/fetch the distribution
+# certificate and provisioning profile, so no .p12 or profile secrets are needed.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: testflight
+  cancel-in-progress: false
+
+jobs:
+  testflight:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: native
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: native/package-lock.json
+
+      - run: npm ci
+      - run: npx cap sync ios
+
+      - name: Write App Store Connect API key
+        env:
+          KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          KEY_ID: ${{ secrets.ASC_KEY_ID }}
+        run: |
+          mkdir -p ~/private_keys
+          printf '%s\n' "$KEY_P8" > ~/private_keys/AuthKey_${KEY_ID}.p8
+
+      - name: Archive
+        working-directory: native/ios/App
+        env:
+          TEAM: ${{ secrets.IOS_TEAM_ID }}
+          KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ISSUER: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          if [ -d App.xcworkspace ]; then TARGET="-workspace App.xcworkspace"; else TARGET="-project App.xcodeproj"; fi
+          xcodebuild $TARGET -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath build/App.xcarchive \
+            DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Automatic \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/private_keys/AuthKey_${KEY_ID}.p8 \
+            -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER" \
+            archive
+
+      - name: Export IPA
+        working-directory: native/ios/App
+        env:
+          TEAM: ${{ secrets.IOS_TEAM_ID }}
+          KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ISSUER: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          cat > build/export.plist <<PL
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>teamID</key><string>$TEAM</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>destination</key><string>export</string>
+          </dict></plist>
+          PL
+          xcodebuild -exportArchive -archivePath build/App.xcarchive \
+            -exportOptionsPlist build/export.plist -exportPath build/ipa \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/private_keys/AuthKey_${KEY_ID}.p8 \
+            -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER"
+
+      - name: Upload to TestFlight
+        env:
+          KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ISSUER: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          xcrun altool --upload-app --type ios \
+            --file ios/App/build/ipa/*.ipa \
+            --apiKey "$KEY_ID" --apiIssuer "$ISSUER"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: mini-roads-ipa
+          path: native/ios/App/build/ipa/*.ipa

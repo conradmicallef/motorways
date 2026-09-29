@@ -1,0 +1,21 @@
+{
+  "name": "mini-roads-native",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Capacitor wrapper for Mini Roads (web assets live in ../pwa)",
+  "scripts": {
+    "sync": "cap sync",
+    "android": "cap sync android && cap open android",
+    "ios": "cap sync ios && cap open ios",
+    "build:android": "cap sync android && cd android && gradlew.bat assembleDebug",
+    "build:android:release": "cap sync android && cd android && gradlew.bat bundleRelease"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.6.9",
+    "@capacitor/cli": "^7.6.9",
+    "@capacitor/core": "^7.6.9",
+    "@capacitor/ios": "^7.6.9",
+    "@capacitor/splash-screen": "^7.0.5",
+    "@capacitor/status-bar": "^7.0.6"
+  }
+}

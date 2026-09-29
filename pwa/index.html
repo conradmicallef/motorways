@@ -1,0 +1,94 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Mini Roads</title>
+<meta name="description" content="Draw roads, connect houses to their destinations, keep the city moving.">
+<meta name="theme-color" content="#efe8d8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Mini Roads">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<style>
+  :root { --bg:#efe8d8; --ink:#3b3f46; --muted:#8a8578; --card:#fbf8f0; --accent:#2e86de; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; height:100%; overflow:hidden; background:var(--bg); color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; user-select:none; -webkit-user-select:none;
+    overscroll-behavior:none; }
+  canvas { position:fixed; inset:0; width:100%; height:100%; touch-action:none; display:block; }
+  #hud { position:fixed; top:0; left:0; right:0; height:56px; padding:calc(env(safe-area-inset-top) + 0px) 14px 0;
+    display:flex; align-items:center; gap:14px; pointer-events:none; }
+  #hud > * { pointer-events:auto; }
+  .stat { display:flex; flex-direction:column; line-height:1.05; min-width:52px; }
+  .stat b { font-size:22px; font-variant-numeric:tabular-nums; }
+  .stat span { font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); }
+  #weekbar { flex:1; height:6px; border-radius:3px; background:rgba(0,0,0,.08); overflow:hidden; min-width:30px; }
+  #weekfill { height:100%; width:0; background:var(--ink); opacity:.55; }
+  .btn { border:0; background:var(--card); color:var(--ink); font:600 13px inherit; font-family:inherit;
+    padding:9px 13px; border-radius:11px; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,.15); }
+  .btn:active { transform:translateY(1px); }
+  .btn.on { background:var(--ink); color:#fff; }
+  #roads.low b { color:#d64545; }
+  .overlay { position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+    background:rgba(239,232,216,.82); backdrop-filter:blur(3px); z-index:5; padding:20px; }
+  .overlay.show { display:flex; }
+  .card { background:var(--card); border-radius:22px; padding:28px 30px; max-width:380px; text-align:center;
+    box-shadow:0 10px 40px rgba(0,0,0,.16); }
+  .card h1 { margin:0 0 6px; font-size:32px; letter-spacing:-.02em; }
+  .card p { margin:8px 0; color:#5d5a52; font-size:14px; line-height:1.45; }
+  .card .big { font-size:54px; font-weight:800; margin:6px 0 0; font-variant-numeric:tabular-nums; }
+  .card .btn { margin-top:16px; font-size:16px; padding:12px 26px; background:var(--ink); color:#fff; }
+  .dots { display:flex; gap:7px; justify-content:center; margin-bottom:14px; }
+  .dots i { width:14px; height:14px; border-radius:5px; display:block; }
+  #toast { position:fixed; left:50%; top:66px; transform:translate(-50%,-10px); background:var(--ink); color:#fff;
+    padding:8px 16px; border-radius:20px; font-size:13px; font-weight:600; opacity:0; transition:.3s; pointer-events:none; z-index:4; }
+  #toast.show { opacity:1; transform:translate(-50%,0); }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">
+  <div class="stat"><b id="score">0</b><span>Delivered</span></div>
+  <div class="stat"><b id="week">1</b><span>Week</span></div>
+  <div class="stat" id="roads"><b id="roadn">0</b><span>Roads</span></div>
+  <div id="weekbar"><div id="weekfill"></div></div>
+  <button class="btn" id="erase" title="Erase roads (E)">Erase</button>
+  <button class="btn" id="pause" title="Pause (P)">Pause</button>
+</div>
+<div id="toast"></div>
+
+<div class="overlay show" id="start">
+  <div class="card">
+    <div class="dots"><i style="background:#e4572e"></i><i style="background:#2e86de"></i><i style="background:#f2b134"></i><i style="background:#3aaf6b"></i></div>
+    <h1>Mini Roads</h1>
+    <p>Drag to draw roads from each <b>house</b> to the matching <b>building</b> of the same colour.</p>
+    <p>Buildings pile up pins as people want to go there. Let a building overflow for too long and it's game over.</p>
+    <p>Erase with the button, right-click, or <b>E</b>. You earn more road every week.</p>
+    <button class="btn" id="play">Play</button>
+  </div>
+</div>
+<div class="overlay" id="over">
+  <div class="card">
+    <h1>Gridlock</h1>
+    <p>A building overflowed.</p>
+    <div class="big" id="finalscore">0</div>
+    <p>delivered Â· best <b id="best">0</b></p>
+    <button class="btn" id="again">Play again</button>
+  </div>
+</div>
+<div class="overlay" id="paused">
+  <div class="card"><h1>Paused</h1><button class="btn" id="resume">Resume</button></div>
+</div>
+
+<script src="game.js"></script>
+<script>
+  if ('serviceWorker' in navigator && !(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())) {
+    addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  }
+</script>
+</body>
+</html>

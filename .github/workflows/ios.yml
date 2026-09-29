@@ -1,0 +1,48 @@
+name: Build iOS
+
+on:
+  push:
+    branches: [main]
+    paths: ['pwa/**', 'native/**', '.github/workflows/ios.yml']
+  pull_request:
+    paths: ['pwa/**', 'native/**', '.github/workflows/ios.yml']
+  workflow_dispatch:
+
+jobs:
+  ios:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: native
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: native/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Sync web assets into iOS project
+        run: npx cap sync ios
+
+      # Unsigned simulator build: proves the project compiles, no Apple account needed.
+      - name: Build for iOS Simulator
+        working-directory: native/ios/App
+        run: |
+          if [ -d App.xcworkspace ]; then TARGET="-workspace App.xcworkspace"; else TARGET="-project App.xcodeproj"; fi
+          xcodebuild $TARGET -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+
+      - name: Zip simulator app
+        working-directory: native/ios/App/build/Build/Products/Debug-iphonesimulator
+        run: ditto -c -k --keepParent App.app "$GITHUB_WORKSPACE/MiniRoads-simulator.zip"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: mini-roads-ios-simulator
+          path: MiniRoads-simulator.zip
