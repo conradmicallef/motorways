@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">Mini Roads</string>
     <string name="title_activity_main">Mini Roads</string>
-    <string name="package_name">app.conradmicallef.motorways</string>
-    <string name="custom_url_scheme">app.conradmicallef.motorways</string>
+    <string name="package_name">com.conradmicallef.motorways</string>
+    <string name="custom_url_scheme">com.conradmicallef.motorways</string>
 </resources>

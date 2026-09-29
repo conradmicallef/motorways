@@ -1,4 +1,4 @@
-package app.conradmicallef.motorways;
+package com.conradmicallef.motorways;
 
 import com.getcapacitor.BridgeActivity;
 

@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace "app.conradmicallef.motorways"
+    namespace "com.conradmicallef.motorways"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "app.conradmicallef.motorways"
+        applicationId "com.conradmicallef.motorways"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

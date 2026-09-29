@@ -8,7 +8,7 @@ name: iOS TestFlight
 #   ASC_ISSUER_ID       - issuer ID
 #   ASC_KEY_P8          - full raw contents of the AuthKey_XXXX.p8 file (including BEGIN/END lines)
 #   IOS_TEAM_ID         - 10-character Apple developer team ID
-# The app (app.conradmicallef.motorways) must already exist in App Store Connect.
+# The app (com.conradmicallef.motorways) must already exist in App Store Connect.
 # Signing is automatic: Xcode uses the API key to create/fetch the distribution
 # certificate and provisioning profile, so no .p12 or profile secrets are needed.
 
