@@ -386,15 +386,33 @@ function drawPins(d) {
 }
 
 // ---------- layout ----------
+let bcs = 30, box = 0, boy = 0, zoom = 1;   // base (fit-to-screen) layout + current zoom
+const MAX_ZOOM = 4;
 function fit() {
   dpr = Math.min(devicePixelRatio || 1, 3);
   cv.width = Math.round(innerWidth * dpr);
   cv.height = Math.round(innerHeight * dpr);
   const top = HUD_H + 6, pad = 12;
   const aw = innerWidth - pad * 2, ah = innerHeight - top - pad;
-  cs = Math.floor(Math.min(aw / W, ah / H));
-  ox = Math.round((innerWidth - cs * W) / 2);
-  oy = Math.round(top + (ah - cs * H) / 2);
+  bcs = Math.floor(Math.min(aw / W, ah / H));
+  box = Math.round((innerWidth - bcs * W) / 2);
+  boy = Math.round(top + (ah - bcs * H) / 2);
+  resetView();
+}
+function resetView() { zoom = 1; cs = bcs; ox = box; oy = boy; }
+function clampView() {
+  if (zoom <= 1.001) { resetView(); return; }
+  const bw = W * cs, bh = H * cs, top = HUD_H + 6, m = 16;
+  const vw = innerWidth, vh = innerHeight - top;
+  ox = bw > vw - 2 * m ? Math.min(m, Math.max(vw - bw - m, ox)) : (vw - bw) / 2;
+  oy = bh > vh - m ? Math.min(top, Math.max(innerHeight - bh - m, oy)) : top + (vh - bh) / 2;
+}
+function zoomAt(x, y, f) {
+  const nz = Math.min(MAX_ZOOM, Math.max(1, zoom * f));
+  const r = nz / zoom;
+  ox = x - (x - ox) * r; oy = y - (y - oy) * r;
+  zoom = nz; cs = bcs * zoom;
+  clampView();
 }
 addEventListener('resize', fit);
 
@@ -407,14 +425,34 @@ function cellAt(e) {
 function active() { return S && started && !S.over && !S.paused; }
 
 cv.addEventListener('contextmenu', e => e.preventDefault());
+const ptrs = new Map();   // active pointers, for two-finger pinch/pan
+let pinch = null;
+const pinchState = () => {
+  const [p, q] = [...ptrs.values()];
+  return { d: Math.hypot(p.x - q.x, p.y - q.y) || 1, x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 };
+};
 cv.addEventListener('pointerdown', e => {
-  if (!active()) return;
+  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (ptrs.size === 2) { drag = null; pinch = pinchState(); return; }
+  if (ptrs.size > 2 || !active()) return;
   cv.setPointerCapture(e.pointerId);
   const c = cellAt(e);
   drag = { erase: eraseMode || e.button === 2, last: c };
   if (drag.erase && c >= 0) eraseNode(c);
 });
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.0015));
+}, { passive: false });
 cv.addEventListener('pointermove', e => {
+  if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pinch && ptrs.size >= 2) {
+    const n = pinchState();
+    zoomAt(n.x, n.y, n.d / pinch.d);
+    if (zoom > 1) { ox += n.x - pinch.x; oy += n.y - pinch.y; clampView(); }
+    pinch = n;
+    return;
+  }
   if (!drag || !active()) return;
   const c = cellAt(e);
   if (c < 0 || c === drag.last && !drag.erase) return;
@@ -431,7 +469,11 @@ cv.addEventListener('pointermove', e => {
   }
   updateHud();
 });
-const endDrag = () => { drag = null; };
+const endDrag = e => {
+  ptrs.delete(e.pointerId);
+  if (ptrs.size < 2) pinch = null;
+  drag = null;
+};
 cv.addEventListener('pointerup', endDrag);
 cv.addEventListener('pointercancel', endDrag);
 
@@ -469,12 +511,14 @@ function setPause(v) {
 }
 
 $('erase').onclick = () => setErase(!eraseMode);
+$('fit').onclick = resetView;
 $('pause').onclick = () => setPause(!S.paused);
 $('resume').onclick = () => setPause(false);
 $('play').onclick = () => { $('start').classList.remove('show'); started = true; };
 $('again').onclick = () => { $('over').classList.remove('show'); newGame(); };
 addEventListener('keydown', e => {
   if (e.key === 'e' || e.key === 'E') setErase(!eraseMode);
+  else if (e.key === '0') resetView();
   else if (e.key === 'p' || e.key === 'P' || e.key === ' ') { e.preventDefault(); if (started) setPause(!S.paused); }
 });
 document.addEventListener('visibilitychange', () => { if (document.hidden) setPause(true); });
