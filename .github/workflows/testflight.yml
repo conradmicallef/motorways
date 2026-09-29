@@ -47,22 +47,16 @@ jobs:
           mkdir -p ~/private_keys
           printf '%s\n' "$KEY_P8" > ~/private_keys/AuthKey_${KEY_ID}.p8
 
+      # Archive unsigned; the export step below signs with a distribution
+      # certificate/profile that Xcode fetches through the API key. (Signing the
+      # archive itself would want a development profile, which needs registered devices.)
       - name: Archive
         working-directory: native/ios/App
         env:
           TEAM: ${{ secrets.IOS_TEAM_ID }}
-          KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ISSUER: ${{ secrets.ASC_ISSUER_ID }}
         run: |
           if [ -d App.xcworkspace ]; then TARGET="-workspace App.xcworkspace"; else TARGET="-project App.xcodeproj"; fi
-          xcodebuild $TARGET -scheme App -configuration Release \
-            -destination 'generic/platform=iOS' -archivePath build/App.xcarchive \
-            DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Automatic \
-            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath ~/private_keys/AuthKey_${KEY_ID}.p8 \
-            -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER" \
-            archive
+          xcodebuild $TARGET -scheme App -configuration Release             -destination 'generic/platform=iOS' -archivePath build/App.xcarchive             DEVELOPMENT_TEAM="$TEAM" CURRENT_PROJECT_VERSION="${{ github.run_number }}"             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""             archive
 
       - name: Export IPA
         working-directory: native/ios/App
