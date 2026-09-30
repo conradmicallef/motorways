@@ -15,7 +15,7 @@ Plain-JS canvas PWA, wrapped with Capacitor for Android and iOS. GitHub: `conrad
 `cd pwa && python -m http.server 8080` then open http://localhost:8080. Service workers need http(s), not `file://`.
 
 ## Gotchas
-- **Service worker cache:** it is cache-first. When changing any file in `pwa/`, bump `CACHE` in `sw.js` (currently `mini-roads-v4`), and hard-reload or unregister the SW when testing.
+- **Service worker cache:** it is cache-first. When changing any file in `pwa/`, bump `CACHE` in `sw.js` (currently `mini-roads-v5`), and hard-reload or unregister the SW when testing.
 - **Native ignores the SW:** `index.html` skips registration when `window.Capacitor.isNativePlatform()`.
 - **Bundle ID is `com.conradmicallef.motorways`** (matches the App Store Connect app "My Motorways"). It appears in `native/capacitor.config.json`, Android `applicationId`/namespace/package dir, and iOS `PRODUCT_BUNDLE_IDENTIFIER`. Change all together. `app.conradmicallef.motorways` was tried and is wrong.
 - **Line endings:** `.gitattributes` forces LF. Windows CRLF breaks `gradlew` on the Linux runner.

@@ -1,4 +1,4 @@
-﻿const CACHE = 'mini-roads-v4';
+﻿const CACHE = 'mini-roads-v5';
 const ASSETS = [
   './', './index.html', './game.js', './manifest.webmanifest',
   './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png',
